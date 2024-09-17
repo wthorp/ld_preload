@@ -12,8 +12,14 @@ func shell() {
 	env := os.Environ()
 
 	// Append LD_PRELOAD flags to the environment
-	preload := "/uplinkc/hook.so"
-	env = append(env, "LD_PRELOAD="+preload)
+	preload := "ld_preload.so"
+	// Get the current working directory
+	dir, err := os.Getwd()
+	if err != nil {
+		fmt.Println("Error getting the current directory:", err)
+		return
+	}
+	env = append(env, "LD_PRELOAD="+dir+"/"+preload)
 
 	// Set the PS1 environment variable to change the shell prompt
 	newPS1 := "(preload) %n@%m %1~ %# "

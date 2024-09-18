@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 )
 
 func shell() {
@@ -20,31 +19,16 @@ func shell() {
 		return
 	}
 	env = append(env, "LD_PRELOAD="+dir+"/"+preload)
-
-	// Set the PS1 environment variable to change the shell prompt
-	newPS1 := "(preload) %n@%m %1~ %# "
-	foundPS1 := false
-	for i, e := range env {
-		if strings.HasPrefix(e, "PS1=") {
-			env[i] = "PS1=" + newPS1
-			foundPS1 = true
-			break
-		}
-	}
-
-	// If PS1 is not found in the environment, add it
-	if !foundPS1 {
-		env = append(env, "PS1="+newPS1)
-	}
+	env = append(env, "PROMPT_COMMAND=printf \"[ldp] - \"")
 
 	// Define the shell to execute
 	shell := os.Getenv("SHELL")
 	if shell == "" {
-		shell = "/bin/bash" // default to /bin/bash if SHELL environment variable is not set
+		shell = "/bin/bash"
 	}
 
 	// Run the shell with the modified environment
-	cmd := exec.Command(shell, "-fi") //todo:  use correct flags across shells to skip init scripts
+	cmd := exec.Command(shell, "-i")
 	cmd.Env = env
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

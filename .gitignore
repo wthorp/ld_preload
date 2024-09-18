@@ -2,12 +2,9 @@
 # https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
 #
 # Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
 ld_preload
+ld_preload.h
+ld_preload.so
 
 # Test binary, built with `go test -c`
 *.test
@@ -24,3 +21,6 @@ go.work.sum
 
 # env file
 .env
+
+# IDE files
+.vscode/

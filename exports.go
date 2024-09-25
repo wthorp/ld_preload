@@ -1,8 +1,33 @@
 package main
 
 /*
-#include <sys/stat.h>
+typedef unsigned int mode_t;
+typedef unsigned int uid_t;
+typedef unsigned int gid_t;
+typedef unsigned long dev_t;
+typedef long off_t;
 typedef long ssize_t;
+
+typedef struct {
+    long tv_sec;
+    long tv_nsec;
+} timespec;
+
+typedef struct {
+    unsigned long   st_dev;
+    unsigned long   st_ino;
+    unsigned long   st_nlink;
+    unsigned int    st_mode;
+    unsigned int    st_uid;
+    unsigned int    st_gid;
+    unsigned long   st_rdev;
+    long            st_size;
+    long            st_blksize;
+    long            st_blocks;
+    timespec        st_atim;
+    timespec        st_mtim;
+    timespec        st_ctim;
+} stat;
 */
 import "C"
 import (
@@ -12,42 +37,18 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// #include <sys/stat.h> gets us the following:
-// --------------------------------------------
-// typedef struct {
-//     long tv_sec;
-//     long tv_nsec;
-// } timespec;
+// There's an issue I don't fully understand which prevents the import
+// of <sys/stat.h>.  If imported, there are conflicts with the function
+// defintions for chmod, mkdir, mknod, and mknodat.
 
-// typedef struct {
-//     unsigned long   st_dev;
-//     unsigned long   st_ino;
-//     unsigned long   st_nlink;
-//     unsigned int    st_mode;
-//     unsigned int    st_uid;
-//     unsigned int    st_gid;
-//     unsigned long   st_rdev;
-//     long            st_size;
-//     long            st_blksize;
-//     long            st_blocks;
-//     timespec        st_atim;
-//     timespec        st_mtim;
-//     timespec        st_ctim;
-// } stat;
-
-// typedef unsigned int uid_t;
-// typedef unsigned int gid_t;
-// typedef unsigned long dev_t;
-// typedef long off_t;
-// typedef unsigned int mode_t;
-// --------------------------------------------
-
-// There seems to be some issues with conflicting function definitions
-// I haven't figured out how to uncomment some of the exported functions below.
-// I suspect it has something to do with defining the bit depth of the types.
+// The functions __fxstat, __fxstatat, __lxstat, __xstat, and fstat all
+// rely on the stat structure defined in <sys/stat.h>.  Unsafe pointers
+// could be used, but instead we simply define the struct here.  Again,
+// with things I don't understamd, this struct is imported as C.stat
+// rather than C.struct_stat.
 
 //export __fxstat
-func __fxstat(ver C.int, fd C.int, cstat *C.struct_stat) C.int {
+func __fxstat(ver C.int, fd C.int, cstat *C.stat) C.int {
 	fmt.Println("In __fxstat")
 	if cstat == nil {
 		return -1
@@ -61,7 +62,7 @@ func __fxstat(ver C.int, fd C.int, cstat *C.struct_stat) C.int {
 }
 
 //export __fxstatat
-func __fxstatat(ver C.int, dirfd C.int, pathname *C.char, cstat *C.struct_stat, flags C.int) C.int {
+func __fxstatat(ver C.int, dirfd C.int, pathname *C.char, cstat *C.stat, flags C.int) C.int {
 	fmt.Println("In __fxstatat")
 	if cstat == nil || pathname == nil {
 		return -1
@@ -75,7 +76,7 @@ func __fxstatat(ver C.int, dirfd C.int, pathname *C.char, cstat *C.struct_stat, 
 }
 
 //export __lxstat
-func __lxstat(ver C.int, pathname *C.char, cstat *C.struct_stat) C.int {
+func __lxstat(ver C.int, pathname *C.char, cstat *C.stat) C.int {
 	fmt.Println("In __lxstat")
 	if cstat == nil || pathname == nil {
 		return -1
@@ -89,7 +90,7 @@ func __lxstat(ver C.int, pathname *C.char, cstat *C.struct_stat) C.int {
 }
 
 //export __xstat
-func __xstat(ver C.int, pathname *C.char, cstat *C.struct_stat) C.int {
+func __xstat(ver C.int, pathname *C.char, cstat *C.stat) C.int {
 	fmt.Println("In __xstat")
 	if cstat == nil || pathname == nil {
 		return -1
@@ -112,15 +113,15 @@ func access(pathname *C.char, mode C.int) C.int {
 	return 0
 }
 
-// //export chmod
-// func chmod(pathname *C.char, mode C.mode_t) C.int {
-// 	fmt.Println("In chmod")
-// 	err := unix.Chmod(C.GoString(pathname), uint32(mode))
-// 	if err != nil {
-// 		return -1
-// 	}
-// 	return 0
-// }
+//export chmod
+func chmod(pathname *C.char, mode C.mode_t) C.int {
+	fmt.Println("In chmod")
+	err := unix.Chmod(C.GoString(pathname), uint32(mode))
+	if err != nil {
+		return -1
+	}
+	return 0
+}
 
 //export chown
 func chown(pathname *C.char, owner C.uid_t, group C.gid_t) C.int {
@@ -142,15 +143,15 @@ func close(fd C.int) C.int {
 	return 0
 }
 
-// //export creat
-// func creat(pathname *C.char, mode C.mode_t) C.int {
-// 	fmt.Println("In creat")
-// 	fd, err := unix.Creat(C.GoString(pathname), uint32(mode))
-// 	if err != nil {
-// 		return -1
-// 	}
-// 	return C.int(fd)
-// }
+//export creat
+func creat(pathname *C.char, mode C.mode_t) C.int {
+	fmt.Println("In creat")
+	fd, err := unix.Creat(C.GoString(pathname), uint32(mode))
+	if err != nil {
+		return -1
+	}
+	return C.int(fd)
+}
 
 //export euidaccess
 func euidaccess(pathname *C.char, mode C.int) C.int {
@@ -185,7 +186,7 @@ func fgetxattr(fd C.int, name *C.char, value unsafe.Pointer, size C.size_t) C.ss
 }
 
 //export fstat
-func fstat(fd C.int, cstat *C.struct_stat) C.int {
+func fstat(fd C.int, cstat *C.stat) C.int {
 	fmt.Println("In fstat")
 	ustat := (*unix.Stat_t)(unsafe.Pointer(cstat))
 	error := unix.Fstat(int(fd), ustat)
@@ -239,35 +240,35 @@ func lseek(fd C.int, offset C.off_t, whence C.int) C.off_t {
 	return C.off_t(newOffset)
 }
 
-// //export mkdir
-// func mkdir(pathname *C.char, mode C.mode_t) C.int {
-// 	fmt.Println("In mkdir")
-// 	err := unix.Mkdir(C.GoString(pathname), uint32(mode))
-// 	if err != nil {
-// 		return -1
-// 	}
-// 	return 0
-// }
+//export mkdir
+func mkdir(pathname *C.char, mode C.mode_t) C.int {
+	fmt.Println("In mkdir")
+	err := unix.Mkdir(C.GoString(pathname), uint32(mode))
+	if err != nil {
+		return -1
+	}
+	return 0
+}
 
-// //export mknod
-// func mknod(pathname *C.char, mode C.mode_t, dev C.dev_t) C.int {
-// 	fmt.Println("In mknod")
-// 	err := unix.Mknod(C.GoString(pathname), uint32(mode), int(dev))
-// 	if err != nil {
-// 		return -1
-// 	}
-// 	return 0
-// }
+//export mknod
+func mknod(pathname *C.char, mode C.mode_t, dev C.dev_t) C.int {
+	fmt.Println("In mknod")
+	err := unix.Mknod(C.GoString(pathname), uint32(mode), int(dev))
+	if err != nil {
+		return -1
+	}
+	return 0
+}
 
-// //export mknodat
-// func mknodat(dirfd C.int, pathname *C.char, mode C.mode_t, dev C.dev_t) C.int {
-// 	fmt.Println("In mknodat")
-// 	err := unix.Mknodat(int(dirfd), C.GoString(pathname), uint32(mode), int(dev))
-// 	if err != nil {
-// 		return -1
-// 	}
-// 	return 0
-// }
+//export mknodat
+func mknodat(dirfd C.int, pathname *C.char, mode C.mode_t, dev C.dev_t) C.int {
+	fmt.Println("In mknodat")
+	err := unix.Mknodat(int(dirfd), C.GoString(pathname), uint32(mode), int(dev))
+	if err != nil {
+		return -1
+	}
+	return 0
+}
 
 //export open
 func open(pathname *C.char, flags C.int, mode C.mode_t) C.int {

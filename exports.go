@@ -13,7 +13,7 @@ typedef struct {
     long tv_nsec;
 } timespec;
 
-typedef struct {
+struct stat{
     unsigned long   st_dev;
     unsigned long   st_ino;
     unsigned long   st_nlink;
@@ -27,7 +27,7 @@ typedef struct {
     timespec        st_atim;
     timespec        st_mtim;
     timespec        st_ctim;
-} stat;
+};
 */
 import "C"
 import (
@@ -43,12 +43,10 @@ import (
 
 // The functions __fxstat, __fxstatat, __lxstat, __xstat, and fstat all
 // rely on the stat structure defined in <sys/stat.h>.  Unsafe pointers
-// could be used, but instead we simply define the struct here.  Again,
-// with things I don't understamd, this struct is imported as C.stat
-// rather than C.struct_stat.
+// could be used, but instead we simply define the struct above.
 
 //export __fxstat
-func __fxstat(ver C.int, fd C.int, cstat *C.stat) C.int {
+func __fxstat(ver C.int, fd C.int, cstat *C.struct_stat) C.int {
 	fmt.Println("In __fxstat")
 	if cstat == nil {
 		return -1
@@ -62,7 +60,7 @@ func __fxstat(ver C.int, fd C.int, cstat *C.stat) C.int {
 }
 
 //export __fxstatat
-func __fxstatat(ver C.int, dirfd C.int, pathname *C.char, cstat *C.stat, flags C.int) C.int {
+func __fxstatat(ver C.int, dirfd C.int, pathname *C.char, cstat *C.struct_stat, flags C.int) C.int {
 	fmt.Println("In __fxstatat")
 	if cstat == nil || pathname == nil {
 		return -1
@@ -76,7 +74,7 @@ func __fxstatat(ver C.int, dirfd C.int, pathname *C.char, cstat *C.stat, flags C
 }
 
 //export __lxstat
-func __lxstat(ver C.int, pathname *C.char, cstat *C.stat) C.int {
+func __lxstat(ver C.int, pathname *C.char, cstat *C.struct_stat) C.int {
 	fmt.Println("In __lxstat")
 	if cstat == nil || pathname == nil {
 		return -1
@@ -90,7 +88,7 @@ func __lxstat(ver C.int, pathname *C.char, cstat *C.stat) C.int {
 }
 
 //export __xstat
-func __xstat(ver C.int, pathname *C.char, cstat *C.stat) C.int {
+func __xstat(ver C.int, pathname *C.char, cstat *C.struct_stat) C.int {
 	fmt.Println("In __xstat")
 	if cstat == nil || pathname == nil {
 		return -1
@@ -186,7 +184,7 @@ func fgetxattr(fd C.int, name *C.char, value unsafe.Pointer, size C.size_t) C.ss
 }
 
 //export fstat
-func fstat(fd C.int, cstat *C.stat) C.int {
+func fstat(fd C.int, cstat *C.struct_stat) C.int {
 	fmt.Println("In fstat")
 	ustat := (*unix.Stat_t)(unsafe.Pointer(cstat))
 	error := unix.Fstat(int(fd), ustat)

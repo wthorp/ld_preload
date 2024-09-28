@@ -1,33 +1,7 @@
 package main
 
 /*
-typedef unsigned int mode_t;
-typedef unsigned int uid_t;
-typedef unsigned int gid_t;
-typedef unsigned long dev_t;
-typedef long off_t;
-typedef long ssize_t;
-
-typedef struct {
-    long tv_sec;
-    long tv_nsec;
-} timespec;
-
-struct stat{
-    unsigned long   st_dev;
-    unsigned long   st_ino;
-    unsigned long   st_nlink;
-    unsigned int    st_mode;
-    unsigned int    st_uid;
-    unsigned int    st_gid;
-    unsigned long   st_rdev;
-    long            st_size;
-    long            st_blksize;
-    long            st_blocks;
-    timespec        st_atim;
-    timespec        st_mtim;
-    timespec        st_ctim;
-};
+#include "rtld.h"
 */
 import "C"
 import (
@@ -46,7 +20,7 @@ import (
 // could be used, but instead we simply define the struct above.
 
 //export __fxstat
-func __fxstat(ver C.int, fd C.int, cstat *C.struct_stat) C.int {
+func __fxstat(_ C.int, fd C.int, cstat *C.struct_stat) C.int {
 	fmt.Println("In __fxstat")
 	if cstat == nil {
 		return -1
@@ -60,7 +34,7 @@ func __fxstat(ver C.int, fd C.int, cstat *C.struct_stat) C.int {
 }
 
 //export __fxstatat
-func __fxstatat(ver C.int, dirfd C.int, pathname *C.char, cstat *C.struct_stat, flags C.int) C.int {
+func __fxstatat(_ C.int, dirfd C.int, pathname *C.char, cstat *C.struct_stat, flags C.int) C.int {
 	fmt.Println("In __fxstatat")
 	if cstat == nil || pathname == nil {
 		return -1
@@ -74,7 +48,7 @@ func __fxstatat(ver C.int, dirfd C.int, pathname *C.char, cstat *C.struct_stat, 
 }
 
 //export __lxstat
-func __lxstat(ver C.int, pathname *C.char, cstat *C.struct_stat) C.int {
+func __lxstat(_ C.int, pathname *C.char, cstat *C.struct_stat) C.int {
 	fmt.Println("In __lxstat")
 	if cstat == nil || pathname == nil {
 		return -1
@@ -88,7 +62,7 @@ func __lxstat(ver C.int, pathname *C.char, cstat *C.struct_stat) C.int {
 }
 
 //export __xstat
-func __xstat(ver C.int, pathname *C.char, cstat *C.struct_stat) C.int {
+func __xstat(_ C.int, pathname *C.char, cstat *C.struct_stat) C.int {
 	fmt.Println("In __xstat")
 	if cstat == nil || pathname == nil {
 		return -1

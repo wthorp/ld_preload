@@ -13,7 +13,7 @@ This brings me to the second attempt.  I suspected the issue stemmed either from
 ### The pains of cgo
 
  - It's very easy to get an error such as `error: conflicting types for ‘fstat’;`.  For me, a non-C expert, this happens so much I can't really nail down what causes it.  It's is easily avoided by avoiding C standard imports.
- - Go structs cannot be used from C.  Notably, Go structs cannot be used as parameters in Go functions marked for `export`.  At best, you can use an unsafe pointers in function defintions and then cast to byte-equivalent Go structs.
+ - Go structs cannot be used from C.  Notably, Go structs cannot be used as parameters in Go functions marked for `export`.  At best, you can use an `unsafe.Pointer` in a function defintion and then cast to a byte-equivalent Go struct.
  - Some C-analogous Go types can be used in Go functions marked for `export`.  In practice, however, I've found that some type substitutions produce erratic results, such as `string` vs `*C.char`.  Using C types therefore is preferred.
  - Go functions cannot be cast to / from `unsafe.Pointer`, for memory safety reasons.  Go functions can be exposed to C by marking them as `export` createing accompanying C function definitions marked `extern`.
- - As much as "do it in Go" sounds easier, it doesn't spare you from dealing with C.  There are a ton of #ifdef and #ifndef in the header files in <sys/stat.h>, which means you're supposed to import some other files before importing <sys/stat.h>.  Which ones?  Go can't tell ya.
+ - As much as "do it in Go" sounds easier, it doesn't spare you from dealing with C.  There are a ton of `#ifdef`s and `#ifndef`s in `<sys/stat.h>`, so there's some logical chain of header files to import first.  Which ones?  Go can't tell ya.

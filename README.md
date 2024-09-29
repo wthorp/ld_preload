@@ -10,9 +10,9 @@ This technique allows for the user-space handling of system calls, such as open,
 double performance for FUSE-like filesystems, by eliminating OS overhead and the security measures required for transferring 
 data between user space and kernel space.
 
-There are few examples of using LD_PRELOAD with Go, but as of 09/24, they are trivial examples.
-An open source C library (https://github.com/sholtrop/ldpfuse/) exists for implementing a FUSE-like file system in C.
-(cunoFS)[https://cuno.io/] is a commerical example of this technique.
+There are few examples of using `LD_PRELOAD` with Go, but as of 09/24, they are trivial examples.
+[ldpfuse](https://github.com/sholtrop/ldpfuse/) is an open source C library for implementing a FUSE-like file system in C.
+[cunoFS](https://cuno.io/) is a commerical example of this technique.
 
 ## Preliminary Findings
 
@@ -22,7 +22,7 @@ This brings me to the second attempt.  I suspected the issue stemmed either from
 
 ## The pains of cgo
 
- - It's very easy to get an error such as `error: conflicting types for ‘fstat’;`.  For me, a non-C expert, this happens so much I can't really nail down what causes it.  It's is easily avoided by avoiding C standard imports.
+ - It's very easy to get an error such as `error: conflicting types for ‘fstat’;`.  I'm sure there a logic to it, but I can't fully nail down when cgo is comfortable overriding functions and when it isn't.  It is, however, easily avoided by avoiding C standard imports entirely.
  - Go structs cannot be used from C.  Notably, Go structs cannot be used as parameters in Go functions marked for `export`.  At best, you can use an `unsafe.Pointer` in a function defintion and then cast to a byte-equivalent Go struct.
  - Some C-analogous Go types can be used in Go functions marked for `export`.  In practice, however, I've found that some type substitutions produce erratic results, such as `string` vs `*C.char`.  Using C types therefore is preferred.
  - Go functions cannot be cast to / from `unsafe.Pointer`, for memory safety reasons.  Go functions can be exposed to C by marking them as `export` createing accompanying C function definitions marked `extern`.

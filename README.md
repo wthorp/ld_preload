@@ -1,16 +1,26 @@
-# ld_preload
-Tinkering with LD_PRELOAD based file system interceptors in Go
+# ld_preload tinkering
+Tinkering with proxying file IO syscalls on linux via an LD_PRELOAD shared object
+
+This project is archived.  However, if you have any success with the techniques here, please let me know!
+
+## Background
+
+The project focuses on exploring the interception of file I/O system calls on Linux by using an LD_PRELOAD shared object. 
+This technique allows for the user-space handling of system calls, such as open, read, and write.  This technique can 
+double performance for FUSE-like filesystems, by eliminating OS overhead and the security measures required for transferring 
+data between user space and kernel space.
 
 There are few examples of using LD_PRELOAD with Go, but as of 09/24, they are trivial examples.
-There is, however, a C library (https://github.com/sholtrop/ldpfuse/) which implements a FUSE-like file system in C.
+An open source C library (https://github.com/sholtrop/ldpfuse/) exists for implementing a FUSE-like file system in C.
+(cunoFS)[https://cuno.io/] is a commerical example of this technique.
 
- ### Preliminary Findings
+## Preliminary Findings
 
 There are two attempts in this repo's history to build a system-call logging proxy.  Both used exported Go functions with C types as parameters.  The first attempt relied on `"golang.org/x/sys/unix"` functions to fulfill the proxied call.  In testing, this worked for trivial examples, but produced deadlocks in some cases.  I ran `strace` against `ls` and confirmed it was waiting on a futex, rather than being in a loop.  Interstingly, I determined that if I didn't override `access()`, the issue went away, yet `access()` did appear to succeed in other applications.
 
 This brings me to the second attempt.  I suspected the issue stemmed either from how Go exposes the DLL endpoints or from its underlying implementation of the Unix system calls. I tried swapping out the `"golang.org/x/sys/unix"` functions with C functions implementing `dlsym(RTLD_NEXT, "stdfunc")`.  To my chagrin, I get the same deadlock.
 
-### The pains of cgo
+## The pains of cgo
 
  - It's very easy to get an error such as `error: conflicting types for ‘fstat’;`.  For me, a non-C expert, this happens so much I can't really nail down what causes it.  It's is easily avoided by avoiding C standard imports.
  - Go structs cannot be used from C.  Notably, Go structs cannot be used as parameters in Go functions marked for `export`.  At best, you can use an `unsafe.Pointer` in a function defintion and then cast to a byte-equivalent Go struct.

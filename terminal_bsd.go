@@ -4,6 +4,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"golang.org/x/sys/unix"
@@ -27,5 +28,7 @@ func makeRaw(f *os.File) (*unix.Termios, error) {
 
 // restoreTerminal restores the terminal to its previous state on BSD and macOS.
 func restoreTerminal(f *os.File, oldState *unix.Termios) {
-	unix.IoctlSetTermios(int(f.Fd()), unix.TIOCSETA, oldState)
+	if err := unix.IoctlSetTermios(int(f.Fd()), unix.TIOCSETA, oldState); err != nil {
+		_, _ = fmt.Fprintf(errorFile, "ioctl restore termios: %v\n", err)
+	}
 }

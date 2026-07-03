@@ -1,6 +1,3 @@
-//go:build linux
-// +build linux
-
 #define _GNU_SOURCE
 
 #include "rtld.h"
@@ -111,17 +108,15 @@ static void resolve_symbols(void) {
     real_write = (write_fn)dlsym(RTLD_NEXT, "write");
 }
 
-static void ensure_symbols(void) {
-    pthread_once(&resolve_once, resolve_symbols);
-}
+static void ensure_symbols(void) { pthread_once(&resolve_once, resolve_symbols); }
 
-#define REQUIRE_SYMBOL(sym) \
-    do {                    \
-        ensure_symbols();   \
-        if ((sym) == NULL) {\
-            errno = ENOSYS; \
-            return -1;      \
-        }                   \
+#define REQUIRE_SYMBOL(sym)                                                                        \
+    do {                                                                                           \
+        ensure_symbols();                                                                          \
+        if ((sym) == NULL) {                                                                       \
+            errno = ENOSYS;                                                                        \
+            return -1;                                                                             \
+        }                                                                                          \
     } while (0)
 
 int orig___fxstat(int ver, int fd, struct stat *cstat) {
@@ -284,9 +279,7 @@ ssize_t orig_write(int fd, const void *buf, size_t count) {
     return real_write(fd, buf, count);
 }
 
-int __fxstat(int ver, int fd, struct stat *cstat) {
-    return orig___fxstat(ver, fd, cstat);
-}
+int __fxstat(int ver, int fd, struct stat *cstat) { return orig___fxstat(ver, fd, cstat); }
 
 int __fxstatat(int ver, int dirfd, const char *pathname, struct stat *cstat, int flags) {
     return orig___fxstatat(ver, dirfd, pathname, cstat, flags);
@@ -300,29 +293,19 @@ int __xstat(int ver, const char *pathname, struct stat *cstat) {
     return orig___xstat(ver, pathname, cstat);
 }
 
-int access(const char *pathname, int mode) {
-    return orig_access(pathname, mode);
-}
+int access(const char *pathname, int mode) { return orig_access(pathname, mode); }
 
-int chmod(const char *pathname, mode_t mode) {
-    return orig_chmod(pathname, mode);
-}
+int chmod(const char *pathname, mode_t mode) { return orig_chmod(pathname, mode); }
 
 int chown(const char *pathname, uid_t owner, gid_t group) {
     return orig_chown(pathname, owner, group);
 }
 
-int close(int fd) {
-    return orig_close(fd);
-}
+int close(int fd) { return orig_close(fd); }
 
-int creat(const char *pathname, mode_t mode) {
-    return orig_creat(pathname, mode);
-}
+int creat(const char *pathname, mode_t mode) { return orig_creat(pathname, mode); }
 
-int euidaccess(const char *pathname, int mode) {
-    return orig_euidaccess(pathname, mode);
-}
+int euidaccess(const char *pathname, int mode) { return orig_euidaccess(pathname, mode); }
 
 int faccessat(int dirfd, const char *pathname, int mode, int flags) {
     return orig_faccessat(dirfd, pathname, mode, flags);
@@ -332,9 +315,7 @@ ssize_t fgetxattr(int fd, const char *name, void *value, size_t size) {
     return orig_fgetxattr(fd, name, value, size);
 }
 
-int fstat(int fd, struct stat *cstat) {
-    return orig_fstat(fd, cstat);
-}
+int fstat(int fd, struct stat *cstat) { return orig_fstat(fd, cstat); }
 
 ssize_t getxattr(const char *pathname, const char *name, void *value, size_t size) {
     return orig_getxattr(pathname, name, value, size);
@@ -344,21 +325,13 @@ ssize_t lgetxattr(const char *pathname, const char *name, void *value, size_t si
     return orig_lgetxattr(pathname, name, value, size);
 }
 
-int link(const char *oldpath, const char *newpath) {
-    return orig_link(oldpath, newpath);
-}
+int link(const char *oldpath, const char *newpath) { return orig_link(oldpath, newpath); }
 
-off_t lseek(int fd, off_t offset, int whence) {
-    return orig_lseek(fd, offset, whence);
-}
+off_t lseek(int fd, off_t offset, int whence) { return orig_lseek(fd, offset, whence); }
 
-int mkdir(const char *pathname, mode_t mode) {
-    return orig_mkdir(pathname, mode);
-}
+int mkdir(const char *pathname, mode_t mode) { return orig_mkdir(pathname, mode); }
 
-int mknod(const char *pathname, mode_t mode, dev_t dev) {
-    return orig_mknod(pathname, mode, dev);
-}
+int mknod(const char *pathname, mode_t mode, dev_t dev) { return orig_mknod(pathname, mode, dev); }
 
 int mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev) {
     return orig_mknodat(dirfd, pathname, mode, dev);
@@ -398,34 +371,20 @@ ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset) {
     return orig_pwrite(fd, buf, count, offset);
 }
 
-ssize_t read(int fd, void *buf, size_t count) {
-    return orig_read(fd, buf, count);
-}
+ssize_t read(int fd, void *buf, size_t count) { return orig_read(fd, buf, count); }
 
 ssize_t readlink(const char *pathname, char *buf, size_t bufsiz) {
     return orig_readlink(pathname, buf, bufsiz);
 }
 
-int rename(const char *oldpath, const char *newpath) {
-    return orig_rename(oldpath, newpath);
-}
+int rename(const char *oldpath, const char *newpath) { return orig_rename(oldpath, newpath); }
 
-int rmdir(const char *pathname) {
-    return orig_rmdir(pathname);
-}
+int rmdir(const char *pathname) { return orig_rmdir(pathname); }
 
-int symlink(const char *target, const char *linkpath) {
-    return orig_symlink(target, linkpath);
-}
+int symlink(const char *target, const char *linkpath) { return orig_symlink(target, linkpath); }
 
-int truncate(const char *pathname, off_t length) {
-    return orig_truncate(pathname, length);
-}
+int truncate(const char *pathname, off_t length) { return orig_truncate(pathname, length); }
 
-int unlink(const char *pathname) {
-    return orig_unlink(pathname);
-}
+int unlink(const char *pathname) { return orig_unlink(pathname); }
 
-ssize_t write(int fd, const void *buf, size_t count) {
-    return orig_write(fd, buf, count);
-}
+ssize_t write(int fd, const void *buf, size_t count) { return orig_write(fd, buf, count); }

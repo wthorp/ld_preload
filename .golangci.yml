@@ -1,0 +1,72 @@
+version: "2"
+
+run:
+  issues-exit-code: 1
+  tests: true
+
+output:
+  formats:
+    text:
+      path: stdout
+      print-linter-name: true
+      print-issued-lines: true
+
+linters:
+  enable:
+    - bidichk
+    - bodyclose
+    - errcheck
+    - errorlint
+    - gocheckcompilerdirectives
+    - gocritic
+    - gosec
+    - govet
+    - ineffassign
+    - misspell
+    - nakedret
+    - nilerr
+    - revive
+    - staticcheck
+    - unconvert
+    - unused
+    - wastedassign
+
+  settings:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+    gocritic:
+      enabled-checks:
+        - deferInLoop
+      disabled-checks:
+        - ifElseChain
+        - elseif
+    nakedret:
+      max-func-lines: 30
+
+  exclusions:
+    generated: lax
+    rules:
+      - linters:
+          - revive
+        text: package-comments
+      - linters:
+          - revive
+        text: var-naming
+      - linters:
+          - revive
+        text: unused-parameter
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  new: false
+
+formatters:
+  enable:
+    - gofmt
+  settings:
+    gofmt:
+      simplify: true
+  exclusions:
+    generated: lax

@@ -1,0 +1,16 @@
+ARG GO_BASE_IMAGE=golang:1.26-bookworm
+
+FROM ${GO_BASE_IMAGE}
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        coreutils \
+        strace \
+        && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+COPY . .
+
+CMD ["./smoke/run.sh"]

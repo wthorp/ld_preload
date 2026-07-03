@@ -1,0 +1,5 @@
+.git
+.DS_Store
+ld_preload
+ld_preload.so
+smoke-artifacts

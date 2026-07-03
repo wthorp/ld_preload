@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-test:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
+
+      - name: Install Go tools
+        run: make tools
+
+      - name: Verify formatting
+        run: make fmt-check
+
+      - name: Lint and unit test
+        run: make lint
+
+  macos-sanity:
+    name: macOS Sanity
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build and test
+        run: |
+          go test ./...
+          make build
+
+  docker-smoke:
+    name: Docker Smoke
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Run Docker smoke harness
+        run: make docker-smoke
+
+      - name: Upload smoke artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: smoke-artifacts-${{ github.run_id }}
+          path: smoke-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7

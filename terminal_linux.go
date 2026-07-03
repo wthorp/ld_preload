@@ -14,7 +14,7 @@ import (
 func makeRaw(f *os.File) (*unix.Termios, error) {
 	oldState, err := unix.IoctlGetTermios(int(f.Fd()), unix.TCGETS)
 	if err != nil {
-		return nil, fmt.Errorf("ioctl get termios: %v", err)
+		return nil, fmt.Errorf("ioctl get termios: %w", err)
 	}
 
 	// newState := *oldState

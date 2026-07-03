@@ -1,12 +1,11 @@
 pre-commit:
-  parallel: true
   commands:
     fmt-check:
       run: make fmt-check
-    unit-test:
-      run: go test ./...
+    lint:
+      run: make lint
 
 pre-push:
   commands:
-    lint:
-      run: make lint
+    docker-smoke:
+      run: make docker-smoke

@@ -1,31 +1,17 @@
-typedef unsigned int mode_t;
-typedef unsigned int uid_t;
-typedef unsigned int gid_t;
-typedef unsigned long dev_t;
-typedef long off_t;
-typedef long ssize_t;
-typedef unsigned long size_t;
+#ifndef RTLD_H
+#define RTLD_H
 
-typedef struct {
-    long tv_sec;
-    long tv_nsec;
-} timespec;
+#ifndef __linux__
+#error "rtld.h is only supported on Linux"
+#endif
 
-struct stat{
-    unsigned long   st_dev;
-    unsigned long   st_ino;
-    unsigned long   st_nlink;
-    unsigned int    st_mode;
-    unsigned int    st_uid;
-    unsigned int    st_gid;
-    unsigned long   st_rdev;
-    long            st_size;
-    long            st_blksize;
-    long            st_blocks;
-    timespec        st_atim;
-    timespec        st_mtim;
-    timespec        st_ctim;
-};
+#define _GNU_SOURCE
+
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/xattr.h>
+#include <unistd.h>
 
 int orig___fxstat(int ver, int fd, struct stat *cstat);
 int orig___fxstatat(int ver, int dirfd, const char *pathname, struct stat *cstat, int flags);
@@ -59,3 +45,5 @@ int orig_symlink(const char *target, const char *linkpath);
 int orig_truncate(const char *pathname, off_t length);
 int orig_unlink(const char *pathname);
 ssize_t orig_write(int fd, const void *buf, size_t count);
+
+#endif

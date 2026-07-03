@@ -5,7 +5,7 @@ GOFMT_FILES := $(shell find . -name '*.go' -not -path './vendor/*')
 C_FILES := $(shell find . \( -name '*.c' -o -name '*.h' \) -not -path './vendor/*')
 GOLANGCI_LINT_VERSION := v2.4.0
 STATICCHECK_VERSION := 2025.1.1
-GOBIN ?= $(shell go env GOPATH)/bin
+GOBIN ?= $(or $(shell go env GOBIN),$(firstword $(subst :, ,$(shell go env GOPATH)))/bin)
 GOLANGCI_LINT := $(GOBIN)/golangci-lint
 STATICCHECK := $(GOBIN)/staticcheck
 SMOKE_IMAGE_BOOKWORM := golang:1.26-bookworm
@@ -110,4 +110,4 @@ docker-smoke-bullseye:
 
 .PHONY: clean
 clean:
-	rm -f $(APP_NAME) $(SO_NAME)
+	rm -f $(APP_NAME) $(SO_NAME) ld_preload.h

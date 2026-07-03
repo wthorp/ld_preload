@@ -29,6 +29,6 @@ func makeRaw(f *os.File) (*unix.Termios, error) {
 // restoreTerminal restores the terminal to its previous state on BSD and macOS.
 func restoreTerminal(f *os.File, oldState *unix.Termios) {
 	if err := unix.IoctlSetTermios(int(f.Fd()), unix.TIOCSETA, oldState); err != nil {
-		fmt.Fprintf(errorFile, "ioctl restore termios: %v\n", err)
+		_, _ = fmt.Fprintf(errorFile, "ioctl restore termios: %v\n", err)
 	}
 }

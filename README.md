@@ -1,29 +1,72 @@
-# ld_preload tinkering
-Tinkering with proxying file IO syscalls on linux via an LD_PRELOAD shared object
+# ld_preload
 
-This project is archived.  However, if you have any success with the techniques here, please let me know!
+Prototype Linux `LD_PRELOAD` interposer for file-oriented libc calls, with Go used around the edges rather than in the hot interception path.
 
-## Background
+This repo is aimed at developers who want to understand or experiment with the design. It is not presented as a production-ready filesystem layer.
 
-The project focuses on exploring the interception of file I/O system calls on Linux by using an LD_PRELOAD shared object. 
-This technique allows for the user-space handling of system calls, such as open, read, and write.  This technique can 
-double performance for FUSE-like filesystems, by eliminating OS overhead and the security measures required for transferring 
-data between user space and kernel space.
+## What this is
 
-There are few examples of using `LD_PRELOAD` with Go, but as of 09/24, they are trivial examples.
-[ldpfuse](https://github.com/sholtrop/ldpfuse/) is an open source C library for implementing a FUSE-like file system in C.
-[cunoFS](https://cuno.io/) is a commerical example of this technique.
+This project explores a FUSE-like idea: intercept common file I/O entry points in a shared object and decide in user space how those calls should behave.
 
-## Preliminary Findings
+The current shape is intentionally conservative:
 
-There are two attempts in this repo's history to build a system-call logging proxy.  Both used exported Go functions with C types as parameters.  The first attempt relied on `"golang.org/x/sys/unix"` functions to fulfill the proxied call.  In testing, this worked for trivial examples, but produced deadlocks in some cases.  I ran `strace` against `ls` and confirmed it was waiting on a futex, rather than being in a loop.  Interstingly, I determined that if I didn't override `access()`, the issue went away, yet `access()` did appear to succeed in other applications.
+- the exported interposer symbols live in C
+- the interposer resolves the real libc entry points with `dlsym(RTLD_NEXT, ...)`
+- the Go side is kept out of the direct libc hook boundary
 
-This brings me to the second attempt.  I suspected the issue stemmed either from how Go exposes the DLL endpoints or from its underlying implementation of the Unix system calls. I tried swapping out the `"golang.org/x/sys/unix"` functions with C functions implementing `dlsym(RTLD_NEXT, "stdfunc")`.  To my chagrin, I get the same deadlock.
+That design exists because the more direct "export Go functions as the overridden libc symbols" approach was unstable in practice.
+
+## Status
+
+Treat this as a working prototype with caveats.
+
+What is true today:
+
+- the library builds as a Linux `c-shared` interposer
+- the repo has a stronger developer workflow than it used to
+- the interposer path is exercised against real Linux userlands
+
+What is not true today:
+
+- this is not a finished virtual filesystem implementation
+- this does not claim broad libc or distro compatibility
+- this does not try to promise production safety under arbitrary process startup paths
+
+## Why the design looks like this
+
+Earlier attempts in this repo tried to override libc symbols with exported Go functions and then fulfill the work with Go syscall wrappers. That looked appealing on paper and worked for trivial cases, but it produced deadlocks in real processes. In particular, routing intercepted libc calls through the Go runtime was too risky in loader-sensitive paths.
+
+The current direction is a reaction to that experience:
+
+- keep exact libc-facing signatures in C
+- keep `open` and `openat` handling variadic at the C boundary
+- use real Linux headers instead of hand-rolled ABI definitions where possible
+- treat Go as an implementation language behind the boundary, not the boundary itself
+
+If you are here to build on the idea, this is the main architectural decision to understand first.
+
+## Minimal usage
+
+This repo is Linux-specific where the interposer matters.
+
+At a high level:
+
+1. Build the shared object.
+2. Preload it into a target process with `LD_PRELOAD`.
+3. Observe behavior on ordinary libc consumers before attempting anything more ambitious.
+
+The included Go executable is only a convenience wrapper for launching a shell with the preload set. It is not the core of the design.
 
 ## The pains of cgo
 
- - It's very easy to get an error such as `error: conflicting types for ‘fstat’;`.  I'm sure there a logic to it, but I can't fully nail down when cgo is comfortable overriding functions and when it isn't.  It is, however, easily avoided by avoiding C standard imports entirely.
- - Go structs cannot be used from C.  Notably, Go structs cannot be used as parameters in Go functions marked for `export`.  At best, you can use an `unsafe.Pointer` in a function defintion and then cast to a byte-equivalent Go struct.
- - Some C-analogous Go types can be used in Go functions marked for `export`.  In practice, however, I've found that some type substitutions produce erratic results, such as `string` vs `*C.char`.  Using C types therefore is preferred.
- - Go functions cannot be cast to / from `unsafe.Pointer`, for memory safety reasons.  Go functions can be exposed to C by marking them as `export` createing accompanying C function definitions marked `extern`.
- - As much as "do it in Go" sounds easier, it doesn't spare you from dealing with C.  There are a ton of `#ifdef`s and `#ifndef`s in `<sys/stat.h>`, so there's some logical chain of header files to import first.  Which ones?  Go can't tell ya.
+These are still the most relevant lessons from working on this:
+
+- It is very easy to get errors like `conflicting types for 'fstat'` when the cgo-generated declarations do not match the C ABI exactly.
+- Go structs cannot be used directly from C exports. In practice that means using C types at the boundary and converting with `unsafe.Pointer` only when you truly have to.
+- Some C-analogous Go types technically work in exported functions, but type substitutions can behave badly. `*C.char` is usually less surprising than trying to be clever.
+- Go functions cannot be cast to or from `unsafe.Pointer`, which limits how "dynamic" the boundary can be.
+- "Do it in Go" does not remove the C problem. Once you touch things like `<sys/stat.h>`, varargs, loader behavior, and libc symbol interposition, you are back in C ABI territory whether you want to be or not.
+
+## Related context
+
+There are not many substantial examples of `LD_PRELOAD`-driven filesystem-style work in Go. A useful C reference point is [ldpfuse](https://github.com/sholtrop/ldpfuse/). A commercial example of the broader technique is [cunoFS](https://cuno.io/).

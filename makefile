@@ -5,9 +5,11 @@ GOFMT_FILES := $(shell find . -name '*.go' -not -path './vendor/*')
 C_FILES := $(shell find . \( -name '*.c' -o -name '*.h' \) -not -path './vendor/*')
 GOLANGCI_LINT_VERSION := v2.4.0
 STATICCHECK_VERSION := 2025.1.1
+LEFTHOOK_VERSION := v1.12.4
 GOBIN ?= $(or $(shell go env GOBIN),$(firstword $(subst :, ,$(shell go env GOPATH)))/bin)
 GOLANGCI_LINT := $(GOBIN)/golangci-lint
 STATICCHECK := $(GOBIN)/staticcheck
+LEFTHOOK := $(GOBIN)/lefthook
 SMOKE_IMAGE_BOOKWORM := golang:1.26-bookworm
 SMOKE_IMAGE_BULLSEYE := golang:1.24-bullseye
 SMOKE_TAG_BOOKWORM := ld_preload-smoke:bookworm
@@ -26,6 +28,7 @@ help:
 	@printf "  make %-12s %s\n" "docker-smoke" "Run Linux LD_PRELOAD smoke tests in both Docker images"
 	@printf "  make %-12s %s\n" "docker-smoke-bookworm" "Run smoke tests in Debian bookworm"
 	@printf "  make %-12s %s\n" "docker-smoke-bullseye" "Run smoke tests in Debian bullseye"
+	@printf "  make %-12s %s\n" "hooks" "Install local git hooks with lefthook"
 	@printf "  make %-12s %s\n" "tools" "Install Go-based developer tools"
 	@printf "  make %-12s %s\n" "clean" "Remove build artifacts"
 
@@ -49,6 +52,11 @@ run: build
 tools:
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 	go install honnef.co/go/tools/cmd/staticcheck@$(STATICCHECK_VERSION)
+	go install github.com/evilmartians/lefthook@$(LEFTHOOK_VERSION)
+
+.PHONY: hooks
+hooks:
+	$(LEFTHOOK) install
 
 .PHONY: fmt
 fmt:

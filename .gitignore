@@ -2,3 +2,4 @@ ld_preload
 ld_preload.so
 smoke/fixture
 smoke-artifacts/
+cpdbg/

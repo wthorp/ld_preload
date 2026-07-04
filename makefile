@@ -26,8 +26,11 @@ help:
 	@printf "  make %-12s %s\n" "lint" "Run Go linters and tests"
 	@printf "  make %-12s %s\n" "lint-fix" "Apply supported auto-fixes"
 	@printf "  make %-12s %s\n" "docker-smoke" "Run Linux LD_PRELOAD smoke tests in both Docker images"
+	@printf "  make %-12s %s\n" "docker-audit" "Run syscall-audit workloads in both Docker images"
 	@printf "  make %-12s %s\n" "docker-smoke-bookworm" "Run smoke tests in Debian bookworm"
+	@printf "  make %-12s %s\n" "docker-audit-bookworm" "Run audit workloads in Debian bookworm"
 	@printf "  make %-12s %s\n" "docker-smoke-bullseye" "Run smoke tests in Debian bullseye"
+	@printf "  make %-12s %s\n" "docker-audit-bullseye" "Run audit workloads in Debian bullseye"
 	@printf "  make %-12s %s\n" "hooks" "Install local git hooks with lefthook"
 	@printf "  make %-12s %s\n" "tools" "Install Go-based developer tools"
 	@printf "  make %-12s %s\n" "clean" "Remove build artifacts"
@@ -102,6 +105,9 @@ lint-fix:
 .PHONY: docker-smoke
 docker-smoke: docker-smoke-bookworm docker-smoke-bullseye
 
+.PHONY: docker-audit
+docker-audit: docker-audit-bookworm docker-audit-bullseye
+
 .PHONY: docker-smoke-bookworm
 docker-smoke-bookworm:
 	chmod +x smoke/run.sh
@@ -109,12 +115,24 @@ docker-smoke-bookworm:
 	mkdir -p smoke-artifacts/bookworm
 	docker run --rm -e SMOKE_SUITE=bookworm -v "$(CURDIR)/smoke-artifacts:/workspace/smoke-artifacts" $(SMOKE_TAG_BOOKWORM)
 
+.PHONY: docker-audit-bookworm
+docker-audit-bookworm:
+	docker build --build-arg GO_BASE_IMAGE=$(SMOKE_IMAGE_BOOKWORM) -f Dockerfile.smoke -t $(SMOKE_TAG_BOOKWORM) .
+	mkdir -p smoke-artifacts/audit-bookworm
+	docker run --rm -e AUDIT_SUITE=bookworm -v "$(CURDIR)/smoke-artifacts:/workspace/smoke-artifacts" $(SMOKE_TAG_BOOKWORM) sh -lc 'sh /workspace/smoke/audit_workloads.sh'
+
 .PHONY: docker-smoke-bullseye
 docker-smoke-bullseye:
 	chmod +x smoke/run.sh
 	docker build --build-arg GO_BASE_IMAGE=$(SMOKE_IMAGE_BULLSEYE) -f Dockerfile.smoke -t $(SMOKE_TAG_BULLSEYE) .
 	mkdir -p smoke-artifacts/bullseye
 	docker run --rm -e SMOKE_SUITE=bullseye -v "$(CURDIR)/smoke-artifacts:/workspace/smoke-artifacts" $(SMOKE_TAG_BULLSEYE)
+
+.PHONY: docker-audit-bullseye
+docker-audit-bullseye:
+	docker build --build-arg GO_BASE_IMAGE=$(SMOKE_IMAGE_BULLSEYE) -f Dockerfile.smoke -t $(SMOKE_TAG_BULLSEYE) .
+	mkdir -p smoke-artifacts/audit-bullseye
+	docker run --rm -e AUDIT_SUITE=bullseye -v "$(CURDIR)/smoke-artifacts:/workspace/smoke-artifacts" $(SMOKE_TAG_BULLSEYE) sh -lc 'sh /workspace/smoke/audit_workloads.sh'
 
 .PHONY: clean
 clean:

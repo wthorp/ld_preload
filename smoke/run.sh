@@ -2,6 +2,19 @@
 
 set -eu
 
+fix_artifact_permissions() {
+    if [ -d "$artifact_dir" ]; then
+        chmod -R a+rX "$artifact_dir" || true
+    fi
+}
+
+make_temp_dir() {
+    dir_template="$1"
+    temp_dir=$(mktemp -d "$dir_template")
+    chmod 755 "$temp_dir"
+    printf '%s\n' "$temp_dir"
+}
+
 repo_root=/workspace
 suite_name="${SMOKE_SUITE:-default}"
 artifact_dir="$repo_root/smoke-artifacts/$suite_name"
@@ -11,6 +24,7 @@ shared_object="$repo_root/ld_preload.so"
 
 mkdir -p "$artifact_dir"
 rm -rf "$artifact_dir"/*
+trap 'fix_artifact_permissions' EXIT
 
 echo "==> building shared object"
 go build -o "$shared_object" -buildmode=c-shared "$repo_root"
@@ -61,7 +75,7 @@ run_pair fixture-metadata "$fixture_bin" metadata
 run_pair fixture-missing "$fixture_bin" missing
 run_pair fixture-xattr "$fixture_bin" xattr
 
-passthrough_root="$(mktemp -d "$artifact_dir/passthrough.XXXXXX")"
+passthrough_root="$(make_temp_dir "$artifact_dir/passthrough.XXXXXX")"
 passthrough_from="$passthrough_root/from"
 passthrough_to="$passthrough_root/to"
 mkdir -p "$passthrough_from" "$passthrough_to"
@@ -79,7 +93,7 @@ run_case preload fixture-invalid-long yes env \
     LD_PRELOAD_REWRITE_TO="$long_to" \
     "$fixture_bin" passthrough "$passthrough_from" "$passthrough_to"
 
-rewrite_root="$(mktemp -d "$artifact_dir/rewrite.XXXXXX")"
+rewrite_root="$(make_temp_dir "$artifact_dir/rewrite.XXXXXX")"
 rewrite_from="$rewrite_root/from"
 rewrite_to="$rewrite_root/to"
 rewrite_sibling="$rewrite_root/from-sibling"
@@ -94,7 +108,7 @@ run_case preload fixture-failopen yes env \
     LD_PRELOAD_REWRITE_TO="$rewrite_to" \
     "$fixture_bin" failopen
 
-workload_root="$(mktemp -d "$artifact_dir/workload.XXXXXX")"
+workload_root="$(make_temp_dir "$artifact_dir/workload.XXXXXX")"
 workload_from="$workload_root/from"
 workload_to="$workload_root/to"
 mkdir -p "$workload_from" "$workload_to"
@@ -125,8 +139,8 @@ run_case preload workload-tar yes env \
         [ "$(cat "$2/archive-dst/file.txt")" = "tar payload" ]
     ' sh "$workload_from" "$workload_to"
 
-fd_sem_from="$(mktemp -d "$artifact_dir/fd-semantics-from.XXXXXX")"
-fd_sem_to="$(mktemp -d "$artifact_dir/fd-semantics-to.XXXXXX")"
+fd_sem_from="$(make_temp_dir "$artifact_dir/fd-semantics-from.XXXXXX")"
+fd_sem_to="$(make_temp_dir "$artifact_dir/fd-semantics-to.XXXXXX")"
 mkdir -p "$fd_sem_from/src" "$fd_sem_to/src"
 run_case preload fixture-fd-semantics yes env \
     LD_PRELOAD_REWRITE_FROM="$fd_sem_from" \

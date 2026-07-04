@@ -43,11 +43,13 @@ ssize_t orig_readlink(const char *pathname, void *buf, size_t bufsiz);
 ssize_t orig_readlinkat(int dirfd, const char *pathname, char *buf, size_t bufsiz);
 int orig_rename(const char *oldpath, const char *newpath);
 int orig_renameat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath);
-int orig_renameat2(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, unsigned int flags);
+int orig_renameat2(int olddirfd, const char *oldpath, int newdirfd, const char *newpath,
+                   unsigned int flags);
 int orig_rmdir(const char *pathname);
 int orig_lstat(const char *pathname, struct stat *cstat);
 int orig_euidaccess(const char *pathname, int mode);
-int orig_statx(int dirfd, const char *pathname, int flags, unsigned int mask, struct statx *statxbuf);
+int orig_statx(int dirfd, const char *pathname, int flags, unsigned int mask,
+               struct statx *statxbuf);
 int orig_stat(const char *pathname, struct stat *cstat);
 int orig_statfs(const char *path, struct statvfs *buf);
 int orig_symlink(const char *target, const char *linkpath);

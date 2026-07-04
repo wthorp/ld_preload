@@ -739,7 +739,8 @@ static void run_fd_exec_check(int keep_fd, int cloexec_fd) {
     }
 }
 
-static void run_rewrite(const char *source_root, const char *target_root, const char *sibling_root) {
+static void run_rewrite(const char *source_root, const char *target_root,
+                        const char *sibling_root) {
     char source_dir[PATH_MAX];
     char source_file[PATH_MAX];
     char source_renamed[PATH_MAX];
@@ -822,7 +823,8 @@ static void run_rewrite(const char *source_root, const char *target_root, const 
         if (exec_fd < 0) {
             die("create exec payload");
         }
-        if (write(exec_fd, exec_payload, sizeof(exec_payload) - 1) != (ssize_t)(sizeof(exec_payload) - 1)) {
+        if (write(exec_fd, exec_payload, sizeof(exec_payload) - 1) !=
+            (ssize_t)(sizeof(exec_payload) - 1)) {
             die("write exec payload");
         }
         if (close(exec_fd) != 0) {
@@ -1165,7 +1167,9 @@ int main(int argc, char **argv) {
     fixture_argv0 = argv[0];
     if (argc < 2) {
         fprintf(stderr,
-                "usage: %s <basic|metadata|missing|passthrough|failopen|rewrite|xattr|fd-semantics|fd-exec-check> [args]\n",
+                "usage: %s "
+                "<basic|metadata|missing|passthrough|failopen|rewrite|xattr|fd-semantics|fd-exec-"
+                "check> [args]\n",
                 argv[0]);
         return 2;
     }

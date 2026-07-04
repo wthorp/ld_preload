@@ -282,7 +282,8 @@ static int substitute_prefix(const char *path, char *dst, size_t dst_len) {
 static int substitute_prefix_reverse(const char *path, char *dst, size_t dst_len) {
     size_t suffix_len;
 
-    if (!rewrite_policy.enabled || !path_matches_prefix(path, rewrite_policy.to, rewrite_policy.to_len)) {
+    if (!rewrite_policy.enabled ||
+        !path_matches_prefix(path, rewrite_policy.to, rewrite_policy.to_len)) {
         return -1;
     }
 
@@ -353,7 +354,8 @@ static int rewrite_absolute_path(const char *pathname, char *dst, size_t dst_len
     return 1;
 }
 
-static int rewrite_relative_path_from_dirfd(int dirfd, const char *pathname, char *dst, size_t dst_len) {
+static int rewrite_relative_path_from_dirfd(int dirfd, const char *pathname, char *dst,
+                                            size_t dst_len) {
     char base[PATH_MAX];
     char resolved[PATH_MAX];
 
@@ -429,7 +431,8 @@ static const char *rewrite_cwd_relative_argument(const char *pathname, char *buf
     return pathname;
 }
 
-static const char *rewrite_at_argument(int *dirfd, const char *pathname, char *buf, size_t buf_len) {
+static const char *rewrite_at_argument(int *dirfd, const char *pathname, char *buf,
+                                       size_t buf_len) {
     if (pathname == NULL) {
         return pathname;
     }
@@ -452,7 +455,7 @@ static const char *rewrite_at_argument(int *dirfd, const char *pathname, char *b
         }                                                                                          \
     } while (0)
 
-#define REQUIRE_SYMBOL_PTR(sym)                                                                     \
+#define REQUIRE_SYMBOL_PTR(sym)                                                                    \
     do {                                                                                           \
         ensure_symbols();                                                                          \
         if ((sym) == NULL) {                                                                       \
@@ -739,12 +742,14 @@ int creat(const char *pathname, mode_t mode) {
 
 int execve(const char *pathname, char *const argv[], char *const envp[]) {
     char rewritten[PATH_MAX];
-    return orig_execve(rewrite_cwd_relative_argument(pathname, rewritten, sizeof(rewritten)), argv, envp);
+    return orig_execve(rewrite_cwd_relative_argument(pathname, rewritten, sizeof(rewritten)), argv,
+                       envp);
 }
 
 int euidaccess(const char *pathname, int mode) {
     char rewritten[PATH_MAX];
-    return orig_euidaccess(rewrite_cwd_relative_argument(pathname, rewritten, sizeof(rewritten)), mode);
+    return orig_euidaccess(rewrite_cwd_relative_argument(pathname, rewritten, sizeof(rewritten)),
+                           mode);
 }
 
 int fstat(int fd, struct stat *cstat) { return orig_fstat(fd, cstat); }
@@ -789,10 +794,10 @@ int link(const char *oldpath, const char *newpath) {
 int linkat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags) {
     char old_rewritten[PATH_MAX];
     char new_rewritten[PATH_MAX];
-    const char *effective_oldpath = rewrite_at_argument(&olddirfd, oldpath, old_rewritten,
-                                                        sizeof(old_rewritten));
-    const char *effective_newpath = rewrite_at_argument(&newdirfd, newpath, new_rewritten,
-                                                        sizeof(new_rewritten));
+    const char *effective_oldpath =
+        rewrite_at_argument(&olddirfd, oldpath, old_rewritten, sizeof(old_rewritten));
+    const char *effective_newpath =
+        rewrite_at_argument(&newdirfd, newpath, new_rewritten, sizeof(new_rewritten));
 
     return orig_linkat(olddirfd, effective_oldpath, newdirfd, effective_newpath, flags);
 }
@@ -831,7 +836,8 @@ int open(const char *pathname, int flags, ...) {
 
     {
         char rewritten[PATH_MAX];
-        return orig_open(rewrite_path_argument(pathname, rewritten, sizeof(rewritten)), flags, mode);
+        return orig_open(rewrite_path_argument(pathname, rewritten, sizeof(rewritten)), flags,
+                         mode);
     }
 }
 
@@ -910,7 +916,8 @@ ssize_t read(int fd, void *buf, size_t count) { return orig_read(fd, buf, count)
 
 ssize_t readlink(const char *pathname, char *buf, size_t bufsiz) {
     char rewritten[PATH_MAX];
-    return orig_readlink(rewrite_path_argument(pathname, rewritten, sizeof(rewritten)), buf, bufsiz);
+    return orig_readlink(rewrite_path_argument(pathname, rewritten, sizeof(rewritten)), buf,
+                         bufsiz);
 }
 
 ssize_t readlinkat(int dirfd, const char *pathname, char *buf, size_t bufsiz) {
@@ -931,17 +938,18 @@ ssize_t readlinkat(int dirfd, const char *pathname, char *buf, size_t bufsiz) {
 int rename(const char *oldpath, const char *newpath) {
     char old_rewritten[PATH_MAX];
     char new_rewritten[PATH_MAX];
-    return orig_rename(rewrite_cwd_relative_argument(oldpath, old_rewritten, sizeof(old_rewritten)),
-                       rewrite_cwd_relative_argument(newpath, new_rewritten, sizeof(new_rewritten)));
+    return orig_rename(
+        rewrite_cwd_relative_argument(oldpath, old_rewritten, sizeof(old_rewritten)),
+        rewrite_cwd_relative_argument(newpath, new_rewritten, sizeof(new_rewritten)));
 }
 
 int renameat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath) {
     char old_rewritten[PATH_MAX];
     char new_rewritten[PATH_MAX];
-    const char *effective_oldpath = rewrite_at_argument(&olddirfd, oldpath, old_rewritten,
-                                                        sizeof(old_rewritten));
-    const char *effective_newpath = rewrite_at_argument(&newdirfd, newpath, new_rewritten,
-                                                        sizeof(new_rewritten));
+    const char *effective_oldpath =
+        rewrite_at_argument(&olddirfd, oldpath, old_rewritten, sizeof(old_rewritten));
+    const char *effective_newpath =
+        rewrite_at_argument(&newdirfd, newpath, new_rewritten, sizeof(new_rewritten));
 
     return orig_renameat(olddirfd, effective_oldpath, newdirfd, effective_newpath);
 }
@@ -950,10 +958,10 @@ int renameat2(int olddirfd, const char *oldpath, int newdirfd, const char *newpa
               unsigned int flags) {
     char old_rewritten[PATH_MAX];
     char new_rewritten[PATH_MAX];
-    const char *effective_oldpath = rewrite_at_argument(&olddirfd, oldpath, old_rewritten,
-                                                        sizeof(old_rewritten));
-    const char *effective_newpath = rewrite_at_argument(&newdirfd, newpath, new_rewritten,
-                                                        sizeof(new_rewritten));
+    const char *effective_oldpath =
+        rewrite_at_argument(&olddirfd, oldpath, old_rewritten, sizeof(old_rewritten));
+    const char *effective_newpath =
+        rewrite_at_argument(&newdirfd, newpath, new_rewritten, sizeof(new_rewritten));
 
     return orig_renameat2(olddirfd, effective_oldpath, newdirfd, effective_newpath, flags);
 }
@@ -999,21 +1007,23 @@ int symlink(const char *target, const char *linkpath) {
     const char *effective_target = target;
 
     if (target != NULL && target[0] == '/') {
-        effective_target = rewrite_path_argument(target, target_rewritten, sizeof(target_rewritten));
+        effective_target =
+            rewrite_path_argument(target, target_rewritten, sizeof(target_rewritten));
     }
-    return orig_symlink(effective_target,
-                        rewrite_cwd_relative_argument(linkpath, link_rewritten, sizeof(link_rewritten)));
+    return orig_symlink(effective_target, rewrite_cwd_relative_argument(linkpath, link_rewritten,
+                                                                        sizeof(link_rewritten)));
 }
 
 int symlinkat(const char *target, int newdirfd, const char *linkpath) {
     char target_rewritten[PATH_MAX];
     char link_rewritten[PATH_MAX];
     const char *effective_target = target;
-    const char *effective_linkpath = rewrite_at_argument(&newdirfd, linkpath, link_rewritten,
-                                                         sizeof(link_rewritten));
+    const char *effective_linkpath =
+        rewrite_at_argument(&newdirfd, linkpath, link_rewritten, sizeof(link_rewritten));
 
     if (target != NULL && target[0] == '/') {
-        effective_target = rewrite_path_argument(target, target_rewritten, sizeof(target_rewritten));
+        effective_target =
+            rewrite_path_argument(target, target_rewritten, sizeof(target_rewritten));
     }
 
     return orig_symlinkat(effective_target, newdirfd, effective_linkpath);

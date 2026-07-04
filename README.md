@@ -2,7 +2,7 @@
 
 Prototype Linux `LD_PRELOAD` interposer for file-oriented libc calls, with Go used around the edges rather than in the hot interception path.
 
-This repo is aimed at developers who want to understand or experiment with the design. It is not presented as a production-ready filesystem layer.
+It started as Go code but has morphed to mostly C, mostly because this is no job for cgo's generated declarations.
 
 ## What this is
 
@@ -34,9 +34,9 @@ What is not true today:
 - this does not claim broad libc or distro compatibility
 - this does not try to promise production safety under arbitrary process startup paths
 
-## Why the design looks like this
+## On the design
 
-Earlier attempts in this repo tried to override libc symbols with exported Go functions and then fulfill the work with Go syscall wrappers. That looked appealing on paper and worked for trivial cases, but it produced deadlocks in real processes. In particular, routing intercepted libc calls through the Go runtime was too risky in loader-sensitive paths.
+Earlier attempts in this repo tried to override libc symbols with exported Go functions and then fulfill the work with Go syscall wrappers. That looked appealing on paper and worked for trivial cases, but it produced deadlocks in real processes.
 
 The current direction is a reaction to that experience:
 

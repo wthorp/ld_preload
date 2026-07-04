@@ -8,6 +8,8 @@ This repo is aimed at developers who want to understand or experiment with the d
 
 This project explores a FUSE-like idea: intercept common file I/O entry points in a shared object and decide in user space how those calls should behave.
 
+If you want to understand the context, [To FUSE or Not to FUSE](https://www.usenix.org/conference/fast17/technical-sessions/presentation/vangoor) analyzes the cost of the kernel/user FUSE hop. [Defusing FUSE](https://www.osti.gov/servlets/purl/1458703) focuses on cutting that overhead by removing parts of the FUSE stack, and [later work](https://dl.acm.org/doi/10.1145/3494556) shows how to hide direct access behind a compatibility layer.
+
 The current shape is intentionally conservative:
 
 - the exported interposer symbols live in C
@@ -42,8 +44,6 @@ The current direction is a reaction to that experience:
 - keep `open` and `openat` handling variadic at the C boundary
 - use real Linux headers instead of hand-rolled ABI definitions where possible
 - treat Go as an implementation language behind the boundary, not the boundary itself
-
-In the wider systems literature, this sits on a path from measuring FUSE overhead to bypassing it and restoring compatibility through transparent interposition. [To FUSE or Not to FUSE](https://www.usenix.org/conference/fast17/technical-sessions/presentation/vangoor) analyzes the cost of the kernel/user FUSE hop, [Defusing FUSE](https://www.osti.gov/servlets/purl/1458703) focuses on cutting that overhead by removing parts of the FUSE stack, and [later work](https://dl.acm.org/doi/10.1145/3494556) shows how to hide direct access behind a compatibility layer.
 
 If you are here to build on the idea, this is the main architectural decision to understand first.
 

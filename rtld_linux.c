@@ -13,6 +13,7 @@
 #include <sys/statvfs.h>
 
 typedef int (*xstat_fn)(int, const char *, struct stat *);
+typedef int (*access_fn)(const char *, int);
 typedef int (*fxstat_fn)(int, int, struct stat *);
 typedef int (*fxstatat_fn)(int, int, const char *, struct stat *, int);
 typedef int (*newfstatat_fn)(int, const char *, struct stat *, int);
@@ -51,6 +52,7 @@ typedef int (*unlinkat_fn)(int, const char *, int);
 typedef int (*utimensat_fn)(int, const char *, const struct timespec[2], int);
 typedef int (*statfs_fn)(const char *, struct statvfs *);
 typedef ssize_t (*write_fn)(int, const void *, size_t);
+typedef int (*euidaccess_fn)(const char *, int);
 
 static pthread_once_t resolve_once = PTHREAD_ONCE_INIT;
 static pthread_once_t rewrite_once = PTHREAD_ONCE_INIT;
@@ -60,6 +62,7 @@ static fxstatat_fn real___fxstatat;
 static newfstatat_fn real_newfstatat;
 static xstat_fn real___lxstat;
 static xstat_fn real___xstat;
+static access_fn real_access;
 static chdir_fn real_chdir;
 static execve_fn real_execve;
 static close_fn real_close;
@@ -95,6 +98,7 @@ static truncate_fn real_truncate;
 static unlink_fn real_unlink;
 static unlinkat_fn real_unlinkat;
 static utimensat_fn real_utimensat;
+static euidaccess_fn real_euidaccess;
 static write_fn real_write;
 
 struct rewrite_policy {
@@ -113,6 +117,7 @@ static void resolve_symbols(void) {
     real_newfstatat = (newfstatat_fn)dlsym(RTLD_NEXT, "newfstatat");
     real___lxstat = (xstat_fn)dlsym(RTLD_NEXT, "__lxstat");
     real___xstat = (xstat_fn)dlsym(RTLD_NEXT, "__xstat");
+    real_access = (access_fn)dlsym(RTLD_NEXT, "access");
     real_chdir = (chdir_fn)dlsym(RTLD_NEXT, "chdir");
     real_execve = (execve_fn)dlsym(RTLD_NEXT, "execve");
     real_close = (close_fn)dlsym(RTLD_NEXT, "close");
@@ -148,6 +153,7 @@ static void resolve_symbols(void) {
     real_unlink = (unlink_fn)dlsym(RTLD_NEXT, "unlink");
     real_unlinkat = (unlinkat_fn)dlsym(RTLD_NEXT, "unlinkat");
     real_utimensat = (utimensat_fn)dlsym(RTLD_NEXT, "utimensat");
+    real_euidaccess = (euidaccess_fn)dlsym(RTLD_NEXT, "euidaccess");
     real_write = (write_fn)dlsym(RTLD_NEXT, "write");
 }
 
@@ -475,6 +481,11 @@ int orig___xstat(int ver, const char *pathname, struct stat *cstat) {
     return real___xstat(ver, pathname, cstat);
 }
 
+int orig_access(const char *pathname, int mode) {
+    REQUIRE_SYMBOL(real_access);
+    return real_access(pathname, mode);
+}
+
 int orig_chdir(const char *path) {
     REQUIRE_SYMBOL(real_chdir);
     return real_chdir(path);
@@ -558,6 +569,11 @@ int orig_openat2(int dirfd, const char *pathname, const struct open_how *how, si
 char *orig_getcwd(char *buf, size_t size) {
     REQUIRE_SYMBOL_PTR(real_getcwd);
     return real_getcwd(buf, size);
+}
+
+int orig_euidaccess(const char *pathname, int mode) {
+    REQUIRE_SYMBOL(real_euidaccess);
+    return real_euidaccess(pathname, mode);
 }
 
 ssize_t orig_pread(int fd, void *buf, size_t count, off_t offset) {
@@ -704,6 +720,11 @@ int __xstat(int ver, const char *pathname, struct stat *cstat) {
     return orig___xstat(ver, rewrite_path_argument(pathname, rewritten, sizeof(rewritten)), cstat);
 }
 
+int access(const char *pathname, int mode) {
+    char rewritten[PATH_MAX];
+    return orig_access(rewrite_cwd_relative_argument(pathname, rewritten, sizeof(rewritten)), mode);
+}
+
 int chdir(const char *path) {
     char rewritten[PATH_MAX];
     return orig_chdir(rewrite_cwd_relative_argument(path, rewritten, sizeof(rewritten)));
@@ -719,6 +740,11 @@ int creat(const char *pathname, mode_t mode) {
 int execve(const char *pathname, char *const argv[], char *const envp[]) {
     char rewritten[PATH_MAX];
     return orig_execve(rewrite_cwd_relative_argument(pathname, rewritten, sizeof(rewritten)), argv, envp);
+}
+
+int euidaccess(const char *pathname, int mode) {
+    char rewritten[PATH_MAX];
+    return orig_euidaccess(rewrite_cwd_relative_argument(pathname, rewritten, sizeof(rewritten)), mode);
 }
 
 int fstat(int fd, struct stat *cstat) { return orig_fstat(fd, cstat); }

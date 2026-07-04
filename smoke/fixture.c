@@ -14,6 +14,7 @@ int main(void) {
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <linux/openat2.h>
 #include <linux/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,8 +22,17 @@ int main(void) {
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/xattr.h>
+#include <sys/statfs.h>
+#include <sys/vfs.h>
+#include <sys/syscall.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+#ifndef SYS_openat2
+#ifdef __NR_openat2
+#define SYS_openat2 __NR_openat2
+#endif
+#endif
 
 static const char payload[] = "ld_preload smoke payload";
 static const char *fixture_argv0;
@@ -740,6 +750,7 @@ static void run_rewrite(const char *source_root, const char *target_root, const 
     char source_rel_symlink_at[PATH_MAX];
     char source_missing[PATH_MAX];
     char source_guard[PATH_MAX];
+    char source_exec[PATH_MAX];
     char source_created_dir_at[PATH_MAX];
     char source_remove_at[PATH_MAX];
     char target_dir[PATH_MAX];
@@ -750,6 +761,7 @@ static void run_rewrite(const char *source_root, const char *target_root, const 
     char target_link_at[PATH_MAX];
     char target_created_dir_at[PATH_MAX];
     char target_remove_at[PATH_MAX];
+    char target_exec[PATH_MAX];
     char sibling_dir[PATH_MAX];
     char sibling_file[PATH_MAX];
     char sibling_guard[PATH_MAX];
@@ -771,6 +783,7 @@ static void run_rewrite(const char *source_root, const char *target_root, const 
     make_path(source_rel_symlink, sizeof(source_rel_symlink), source_dir, "rel.lnk");
     make_path(source_abs_symlink_at, sizeof(source_abs_symlink_at), source_dir, "abs-at.lnk");
     make_path(source_rel_symlink_at, sizeof(source_rel_symlink_at), source_dir, "rel-at.lnk");
+    make_path(source_exec, sizeof(source_exec), source_dir, "exec-target");
     make_path(source_missing, sizeof(source_missing), source_dir, "missing.txt");
     make_path(source_guard, sizeof(source_guard), source_root, "guard.txt");
     make_path(source_created_dir_at, sizeof(source_created_dir_at), source_dir, "made-at");
@@ -782,6 +795,7 @@ static void run_rewrite(const char *source_root, const char *target_root, const 
     make_path(target_renamed2, sizeof(target_renamed2), target_dir, "renamed2.txt");
     make_path(target_link, sizeof(target_link), target_dir, "hard.txt");
     make_path(target_link_at, sizeof(target_link_at), target_dir, "hard-at.txt");
+    make_path(target_exec, sizeof(target_exec), target_dir, "exec-target");
     make_path(target_created_dir_at, sizeof(target_created_dir_at), target_dir, "made-at");
     make_path(target_remove_at, sizeof(target_remove_at), target_dir, "remove-at.txt");
 
@@ -800,6 +814,21 @@ static void run_rewrite(const char *source_root, const char *target_root, const 
     write_file_exact(sibling_file, "sibling payload");
     write_file_exact(sibling_guard, "sibling guard");
     write_file_exact(target_remove_at, "remove me");
+    {
+        int exec_fd;
+        const char exec_payload[] = "#!/bin/sh\nexit 0\n";
+
+        exec_fd = creat(source_exec, 0755);
+        if (exec_fd < 0) {
+            die("create exec payload");
+        }
+        if (write(exec_fd, exec_payload, sizeof(exec_payload) - 1) != (ssize_t)(sizeof(exec_payload) - 1)) {
+            die("write exec payload");
+        }
+        if (close(exec_fd) != 0) {
+            die("close exec payload");
+        }
+    }
 
     fd = open(source_file, O_RDONLY);
     if (fd < 0) {
@@ -1033,6 +1062,96 @@ static void run_rewrite(const char *source_root, const char *target_root, const 
         fail_message("rewritten missing statx unexpectedly succeeded");
     }
     expect_errno_int("rewritten missing statx", errno, ENOENT);
+
+    if (access(source_renamed, R_OK) != 0) {
+        die("rewritten access");
+    }
+
+    if (faccessat(dirfd, "renamed.txt", R_OK, 0) != 0) {
+        die("rewritten faccessat");
+    }
+
+    if (fchmodat(dirfd, "renamed.txt", 0600, 0) != 0) {
+        die("rewritten fchmodat");
+    }
+    if (stat(target_renamed, &st) != 0) {
+        die("stat target rewritten fchmodat");
+    }
+    if ((st.st_mode & 0777) != 0600) {
+        fail_message("fchmodat rewrite mode mismatch");
+    }
+
+#if defined(SYS_openat2)
+    {
+        struct open_how how = {
+            .flags = O_RDONLY,
+            .mode = 0,
+            .resolve = 0,
+        };
+        fd = (int)syscall(SYS_openat2, dirfd, "renamed.txt", &how, sizeof(how));
+    }
+    if (fd < 0) {
+        die("rewritten openat2");
+    }
+    memset(read_buf, 0, sizeof(read_buf));
+    n = pread(fd, read_buf, sizeof(read_buf), 0);
+    if (n < 0) {
+        die("read rewritten openat2");
+    }
+    if (close(fd) != 0) {
+        die("close rewritten openat2");
+    }
+#endif
+
+    {
+        struct statfs stfs;
+        if (statfs(source_dir, &stfs) != 0) {
+            die("rewritten statfs");
+        }
+        if (stfs.f_bsize == 0) {
+            fail_message("statfs rewrite returned zero block size");
+        }
+    }
+
+    {
+        char cwd[PATH_MAX];
+        pid_t child_pid_exec;
+        int wait_status;
+
+        if (getcwd(cwd, sizeof(cwd)) == NULL) {
+            die("getcwd before rewrite chdir");
+        }
+        if (chdir(source_dir) != 0) {
+            die("rewritten chdir");
+        }
+        memset(cwd, 0, sizeof(cwd));
+        if (getcwd(cwd, sizeof(cwd)) == NULL) {
+            die("getcwd after rewrite chdir");
+        }
+        if (strcmp(cwd, source_dir) != 0) {
+            fail_message("getcwd rewrite mismatch after chdir");
+        }
+        if (chdir("/") != 0) {
+            die("restore cwd after chdir");
+        }
+
+        child_pid_exec = fork();
+        if (child_pid_exec < 0) {
+            die("fork exec test");
+        }
+        if (child_pid_exec == 0) {
+            char *exec_argv[] = {(char *)"true", NULL};
+            char *exec_envp[] = {NULL};
+            execve(source_exec, exec_argv, exec_envp);
+            _exit(1);
+        }
+        if (waitpid(child_pid_exec, &wait_status, 0) != child_pid_exec) {
+            die("wait exec test");
+        }
+        if (!WIFEXITED(wait_status) || WEXITSTATUS(wait_status) != 0) {
+            die("execve rewritten path did not execute");
+        }
+    }
 
     if (close(target_dirfd) != 0) {
         die("close target dir");

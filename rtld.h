@@ -19,6 +19,7 @@ int orig___fxstat(int ver, int fd, struct stat *cstat);
 int orig___fxstatat(int ver, int dirfd, const char *pathname, struct stat *cstat, int flags);
 int orig___lxstat(int ver, const char *pathname, struct stat *cstat);
 int orig___xstat(int ver, const char *pathname, struct stat *cstat);
+int orig_access(const char *pathname, int mode);
 int orig_chdir(const char *path);
 int orig_close(int fd);
 int orig_execve(const char *pathname, char *const argv[], char *const envp[]);
@@ -45,6 +46,7 @@ int orig_renameat(int olddirfd, const char *oldpath, int newdirfd, const char *n
 int orig_renameat2(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, unsigned int flags);
 int orig_rmdir(const char *pathname);
 int orig_lstat(const char *pathname, struct stat *cstat);
+int orig_euidaccess(const char *pathname, int mode);
 int orig_statx(int dirfd, const char *pathname, int flags, unsigned int mask, struct statx *statxbuf);
 int orig_stat(const char *pathname, struct stat *cstat);
 int orig_statfs(const char *path, struct statvfs *buf);

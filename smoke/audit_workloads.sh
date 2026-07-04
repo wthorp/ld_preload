@@ -6,6 +6,8 @@ repo_root=/workspace
 suite_name="${AUDIT_SUITE:-audit}"
 artifact_dir="$repo_root/smoke-artifacts/$suite_name"
 shared_object="$repo_root/ld_preload.so"
+fixture_bin="$repo_root/smoke/fixture"
+fixture_src="$repo_root/smoke/fixture.c"
 status_file="$artifact_dir/workload-status.txt"
 
 mkdir -p "$artifact_dir"
@@ -14,30 +16,31 @@ rm -rf "$artifact_dir"/*
 
 echo "==> building shared object"
 go build -o "$shared_object" -buildmode=c-shared "$repo_root"
+cc -Wall -Wextra -Werror -O2 -o "$fixture_bin" "$fixture_src"
 
-core_syscalls='close
+rewritten_syscalls='access
 creat
 chdir
+euidaccess
 execve
 faccessat
 fchmodat
 getcwd
-fstat
 link
 linkat
-lseek
 mkdir
 mkdirat
-newfstatat
+open
 openat
 openat2
-statfs
-read
 readlink
 readlinkat
 rename
 renameat
 renameat2
+rmdir
+stat
+statfs
 statx
 symlink
 symlinkat
@@ -45,6 +48,16 @@ truncate
 unlink
 unlinkat
 utimensat
+lstat
+newfstatat'
+
+passthrough_syscalls='close
+fstat
+faccessat2
+lseek
+pread
+pwrite
+read
 write'
 
 run_trace() {
@@ -402,18 +415,86 @@ run_check_optional() {
     return 0
 }
 
-collect_missed() {
-    summary="$artifact_dir/missed-syscalls.txt"
-    : >"$summary"
+contains() {
+    list=$1
+    value=$2
 
-    sed -nE 's/^([a-zA-Z0-9_]+)\(.*/\1/p' "$artifact_dir"/*.strace* \
-        | sort | uniq >"$artifact_dir/all-file-syscalls.txt"
+    printf '%s\n' "$list" | grep -Fxq "$value"
+}
+
+normalize_and_sort_syscalls() {
+    local input_file=$1
+    local output_file=$2
+
+    sed -nE 's/^([a-zA-Z0-9_]+)\(.*/\1/p' "$input_file" | sort -u >"$output_file"
+}
+
+collect_missed() {
+    all_syscalls_file="$artifact_dir/observed-syscalls.txt"
+    rewritten_file="$artifact_dir/rewrite-syscalls.txt"
+    passthrough_file="$artifact_dir/passthrough-syscalls.txt"
+    missed_file="$artifact_dir/missed-syscalls.txt"
+    summary_file="$artifact_dir/syscall-summary.txt"
+
+    : >"$rewritten_file"
+    : >"$passthrough_file"
+    : >"$missed_file"
+    : >"$summary_file"
+
+    if [ -z "${artifact_dir}" ] || [ ! -d "$artifact_dir" ]; then
+        return 1
+    fi
+
+    tmp_all_file="$artifact_dir/.all-file-syscalls.raw"
+    : >"$tmp_all_file"
+
+    for strace_file in "$artifact_dir"/*.strace*; do
+        if [ -f "$strace_file" ]; then
+            normalize_and_sort_syscalls "$strace_file" "${strace_file}.syscalls"
+            cat "${strace_file}.syscalls" >>"$tmp_all_file"
+            rm -f "${strace_file}.syscalls"
+        fi
+    done
+
+    sort -u "$tmp_all_file" >"$all_syscalls_file"
+    rm -f "$tmp_all_file"
+
+    observed_count=0
+    rewritten_count=0
+    passthrough_count=0
+    missed_count=0
 
     while IFS= read -r syscall; do
-        if ! printf '%s\n' "$core_syscalls" | grep -Fx "$syscall" >/dev/null 2>&1; then
-            printf '%s\n' "$syscall" >>"$summary"
+        if [ -z "$syscall" ]; then
+            continue
         fi
-    done <"$artifact_dir/all-file-syscalls.txt"
+
+        observed_count=$((observed_count + 1))
+
+        if contains "$rewritten_syscalls" "$syscall"; then
+            printf '%s\n' "$syscall" >>"$rewritten_file"
+            rewritten_count=$((rewritten_count + 1))
+            continue
+        fi
+
+        if contains "$passthrough_syscalls" "$syscall"; then
+            printf '%s\n' "$syscall" >>"$passthrough_file"
+            passthrough_count=$((passthrough_count + 1))
+            continue
+        fi
+
+        printf '%s\n' "$syscall" >>"$missed_file"
+        missed_count=$((missed_count + 1))
+    done <"$all_syscalls_file"
+
+    printf '== rewritten paths: %s\n' "$rewritten_count" >"$summary_file"
+    printf '== passthrough paths: %s\n' "$passthrough_count" >>"$summary_file"
+    printf '== missed / unaccounted: %s\n' "$missed_count" >>"$summary_file"
+    printf '== total observed: %s\n' "$observed_count" >>"$summary_file"
+
+    sort -u "$rewritten_file" -o "$rewritten_file"
+    sort -u "$passthrough_file" -o "$passthrough_file"
+    sort -u "$missed_file" -o "$missed_file"
 }
 
 cleanup_pids=
@@ -488,6 +569,14 @@ printf '%s' 'rclone payload' >"$rclone_to/src/file.txt"
 run_trace rclone "$rclone_from" "$rclone_to" rclone copy "$rclone_from/src" "$rclone_neutral/dst" || true
 check_path rclone "$rclone_neutral/dst/file.txt" || true
 
+set -- $(prepare_pair rewrite-contract)
+rewrite_contract_from="$1"
+rewrite_contract_to="$2"
+rewrite_contract_sibling="$artifact_dir/rewrite-contract-sibling"
+mkdir -p "$rewrite_contract_sibling"
+run_trace rewrite-contract "$rewrite_contract_from" "$rewrite_contract_to" \
+    "$fixture_bin" rewrite "$rewrite_contract_from" "$rewrite_contract_to" "$rewrite_contract_sibling"
+
 moto_pid=$(start_moto)
 cleanup_pids="$cleanup_pids $moto_pid"
 set -- $(prepare_pair aws)
@@ -520,7 +609,9 @@ run_ganesha_workflow || true
 collect_missed
 
 echo "==> observed file syscalls"
-cat "$artifact_dir/all-file-syscalls.txt"
+cat "$artifact_dir/observed-syscalls.txt"
+echo "==> syscall coverage"
+cat "$artifact_dir/syscall-summary.txt"
 echo "==> workload status"
 cat "$status_file"
 echo "==> missed file syscalls"

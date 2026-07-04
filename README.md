@@ -96,12 +96,12 @@ Path handling rules:
 The defended rewrite surface is the file-tree illusion core:
 
 - creation and open: `creat`, `open`, `openat`
-- metadata lookup: `stat`, `lstat`, `statx`, `__xstat`, `__lxstat`, `__fxstatat`, `newfstatat`
+- metadata lookup: `access`, `euidaccess`, `stat`, `lstat`, `statx`, `__xstat`, `__lxstat`, `__fxstatat`, `newfstatat`
 - path changes: `rename`, `renameat`, `renameat2`, `link`, `linkat`, `symlink`, `symlinkat`, `unlink`, `unlinkat`, `mkdir`, `mkdirat`, `truncate`, `utimensat`
 - open-family: `open`, `openat`, `openat2`
 - access and mode queries: `faccessat`, `fchmodat`
-- mount-like helpers: `statfs`, `chdir`, `getcwd`
-- execution: `execve`
+- mount-like/helpers: `statfs`, `chdir`, `getcwd`
+- process helper: `execve`
 - symlink reads: `readlink`, `readlinkat`
 
 Fd-only operations are pass-through:
@@ -116,11 +116,19 @@ This prototype does not currently try to cover every libc or kernel-facing file 
 
 In particular, it does not promise rewrite coverage for:
 
-- permission and identity probes such as `access`, `euidaccess`
-- ownership and mode mutation outside the core surface
 - xattr enumeration and mutation
 - special-file creation such as `mknod`
 - library-level path helpers such as `realpath`, `glob`, `opendir`, or traversal frameworks
+
+Fd-only behavior and non-libc syscall paths are intentionally left as passthrough unless the behavior is explicitly modeled.
+
+For audit, run `make docker-audit` to execute candidate workloads under `strace=%file` and emit:
+
+- `observed-syscalls.txt`
+- `rewrite-syscalls.txt`
+- `passthrough-syscalls.txt`
+- `missed-syscalls.txt`
+- `syscall-summary.txt`
 
 Those omissions are deliberate. The project is optimizing for a smaller, more defensible preload boundary rather than broad filesystem emulation.
 

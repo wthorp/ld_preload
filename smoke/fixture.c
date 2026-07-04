@@ -76,6 +76,22 @@ static void expect_bytes(const char *label, const char *actual, const char *expe
     }
 }
 
+static void expect_child_status_zero(const char *label, int status) {
+    if (WIFEXITED(status)) {
+        if (WEXITSTATUS(status) == 0) {
+            return;
+        }
+        fprintf(stderr, "%s: child exit status %d\n", label, WEXITSTATUS(status));
+    } else if (WIFSIGNALED(status)) {
+        fprintf(stderr, "%s: child terminated by signal %d\n", label, WTERMSIG(status));
+    } else if (WIFSTOPPED(status)) {
+        fprintf(stderr, "%s: child stopped by signal %d\n", label, WSTOPSIG(status));
+    } else {
+        fprintf(stderr, "%s: child status %d\n", label, status);
+    }
+    exit(1);
+}
+
 static int is_optional_xattr_errno(int err) {
     return err == ENOTSUP || err == EOPNOTSUPP || err == EPERM;
 }
@@ -642,9 +658,7 @@ static void run_fd_semantics(const char *source_root, const char *target_root) {
     if (waitpid(child_pid, &status, 0) != child_pid) {
         die("wait fork inherit");
     }
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        die("fork-inherited child failed");
-    }
+    expect_child_status_zero("fork-inherited child", status);
 
     shared_fd = open(source_file, O_RDONLY);
     if (shared_fd < 0) {
@@ -661,9 +675,7 @@ static void run_fd_semantics(const char *source_root, const char *target_root) {
     if (waitpid(child_pid, &status, 0) != child_pid) {
         die("wait fork child close");
     }
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        die("fork child close failed");
-    }
+    expect_child_status_zero("fork child close", status);
     memset(read_buf, 0, sizeof(read_buf));
     n = pread(shared_fd, read_buf, sizeof(read_buf), 0);
     if (n != (ssize_t)strlen(payload_buf)) {
@@ -697,9 +709,7 @@ static void run_fd_semantics(const char *source_root, const char *target_root) {
     if (waitpid(child_pid, &status, 0) != child_pid) {
         die("wait exec check");
     }
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        die("exec check child failed");
-    }
+    expect_child_status_zero("exec check child failed", status);
 
     if (close(shared_fd) != 0) {
         die("close shared fd");
@@ -734,8 +744,11 @@ static void run_fd_exec_check(int keep_fd, int cloexec_fd) {
     }
 
     errno = 0;
-    if (fstat(cloexec_fd, &st) != -1 || errno != EBADF) {
-        die("fdexec cloexec is still open");
+    if (fstat(cloexec_fd, &st) == 0) {
+        fail_message("fdexec cloexec is still open");
+    }
+    if (errno != EBADF) {
+        die("fdexec cloexec check");
     }
 }
 
